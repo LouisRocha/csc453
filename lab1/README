@@ -1,0 +1,8 @@
+Name: 
+	Louis Rocha (lorocha)
+
+Special Instructions:
+	1. run "make pipeit"
+	2. the build "pipeit" appears
+	3. run "./pipeit" and a file "outfile" should appear in the directory
+	4. run "cat outfile" to see the list of files sorted in reverse alphabetical order	
