@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <errno.h>
+#include <math.h>
 
 #define ORIGINAL_HUNK_SIZE 64000
 
@@ -25,9 +26,25 @@ chunk *traverse_chunks(size_t size) {
     return NULL;
 }
 
+size_t byteAligner(size_t size){
+    if (size % 16 == 0){
+        return size;
+    }
+    return size + (16 - (size % 16));
+}
+
 void *mymalloc(size_t size){
+    if(size == 0){
+        return NULL;
+    }
+
+    size = byteAligner(size); 
+
     chunk *potential_chunk = traverse_chunks(size);
+
     if(potential_chunk != NULL){
+        chunk *remainder  
+
         potential_chunk->isFree = false;
         return (void *)(potential_chunk + 1);
     } else {
@@ -43,7 +60,15 @@ void *mymalloc(size_t size){
         new->isFree = false;
         new->next = NULL;
 
-        head = new;
+        if(head == NULL){
+            head = new;
+        } else {
+            chunk *current = head;
+            while(current->next != NULL){
+                current = current->next;
+            }
+            current->next = new;
+        }
 
         return (void *)(new + 1);
     }
