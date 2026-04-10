@@ -5,6 +5,7 @@
 #include <math.h>
 
 #define ORIGINAL_HUNK_SIZE 64000
+#define ALIGNER_FACTOR 16
 
 typedef struct chunk{
     size_t size;
@@ -27,10 +28,10 @@ chunk *traverse_chunks(size_t size) {
 }
 
 size_t byteAligner(size_t size){
-    if (size % 16 == 0){
+    if (size % ALIGNER_FACTOR == 0){
         return size;
     }
-    return size + (16 - (size % 16));
+    return size + (ALIGNER_FACTOR - (size % ALIGNER_FACTOR));
 }
 
 void *mymalloc(size_t size){
@@ -43,12 +44,24 @@ void *mymalloc(size_t size){
     chunk *potential_chunk = traverse_chunks(size);
 
     if(potential_chunk != NULL){
-        chunk *remainder  
+        chunk *remainder = (chunk *)((char *)(potential_chunk + 1) + size);
+        remainder->size = potential_chunk->size - size - sizeof(chunk);
+        remainder->isFree = true;
+        remainder->next = potential_chunk->next;
 
+        potential_chunk->size = size;
         potential_chunk->isFree = false;
+        potential_chunk->next = remainder;
+
         return (void *)(potential_chunk + 1);
+
     } else {
-        void *start = sbrk(ORIGINAL_HUNK_SIZE);
+        size_t og_hunk_size = ORIGINAL_HUNK_SIZE;
+        if(sizeof(chunk) + size > og_hunk_size){
+            og_hunk_size = size + sizeof(chunk);
+        }
+
+        void *start = sbrk(og_hunk_size);
 
         if(start == (void *) -1){
             errno = ENOMEM;
@@ -56,7 +69,7 @@ void *mymalloc(size_t size){
         }
 
         chunk *new = (chunk *) start;
-        new->size = ORIGINAL_HUNK_SIZE - sizeof(chunk);
+        new->size = og_hunk_size - sizeof(chunk);
         new->isFree = false;
         new->next = NULL;
 
@@ -69,10 +82,14 @@ void *mymalloc(size_t size){
             }
             current->next = new;
         }
-
         return (void *)(new + 1);
     }
 };
+
+void myfree(void *ptr){
+    chunk *ch = (chunk *) ptr - 1;
+    ch->isFree = true;
+}
 
 int main(){
     printf("%p\n", sbrk(0));
