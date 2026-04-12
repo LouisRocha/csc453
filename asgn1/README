@@ -1,0 +1,9 @@
+Name: Louis Rocha (lorocha)
+
+Special notes:
+    In my implementation of "realloc()" specifically the in-place expansion,
+    I was not able to check if the previous chunk was available to merge with
+    because my struct chunk does include a prev parameter, so it only checks the .next chunk
+    if there is one.
+
+    
