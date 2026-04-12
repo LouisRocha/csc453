@@ -11,12 +11,17 @@
  */
 
 #define ORIGINAL_HUNK_SIZE 64000 /* size of each sbrk() req. */
-#define ALIGNER_FACTOR 16        /* allocations aligned to X bytes (16 in this case)*/
+#define ALIGNER_FACTOR 16 /* allocations aligned to X bytes (16 in this case)*/
 
 typedef struct chunk{
     size_t size;
     bool isFree;
     struct chunk *next;
+    #ifdef __LP64__
+        char padding[8];  /* 64-bit: 24 + 8 = 32 bytes */
+    #else
+        char padding[4];  /* 32-bit: 12 + 4 = 16 bytes */
+    #endif
 } chunk;
 
 static chunk *head = NULL; /* Head of the linked list of chunks */
@@ -81,7 +86,7 @@ void *malloc(size_t size){
         /* No suitable chunk found, request more memory from OS */
         size_t og_hunk_size = ORIGINAL_HUNK_SIZE;
         if(sizeof(chunk) + size > og_hunk_size){
-            /* Request is larger than default hunk size, allocate exactly what's needed */
+            /* Request is larger than default hunk size */
             og_hunk_size = size + sizeof(chunk);
         }
 
@@ -112,7 +117,12 @@ void *malloc(size_t size){
 
     if(getenv("DEBUG_MALLOC")){
         char buf[256];
-        snprintf(buf, sizeof(buf), "MALLOC: malloc(%zu) => (ptr=%p, size=%zu)\n", size, result, size);
+
+        snprintf(buf, sizeof(buf),"MALLOC: malloc(%zu) => (ptr=%p, size=%zu)\n",
+	 size,
+	 result,
+	 size);
+
         write(2, buf, strlen(buf));
     }
     
@@ -170,7 +180,13 @@ void *calloc(size_t num, size_t size){
 
     if(getenv("DEBUG_MALLOC")){
         char buf[256];
-        snprintf(buf, sizeof(buf), "MALLOC: calloc(%zu,%zu) => (ptr=%p, size=%zu)\n", num, size, result, num * size);
+
+        snprintf(buf,sizeof(buf),"MALLOC:calloc(%zu,%zu) =>(ptr=%p,size=%zu)\n",
+	 num,
+	 size,
+	 result,
+	 num * size);
+
         write(2, buf, strlen(buf));
     }
 
@@ -237,7 +253,13 @@ void *realloc(void *ptr, size_t size){
 
     if(getenv("DEBUG_MALLOC")){
         char buf[256];
-        snprintf(buf, sizeof(buf), "MALLOC: realloc(%p,%zu) => (ptr=%p, size=%zu)\n", ptr, size, result, size);
+
+        snprintf(buf,sizeof(buf),"MALLOC:realloc(%p,%zu) =>(ptr=%p,size=%zu)\n",
+	 ptr,
+	 size,
+	 result,
+	 size);
+
         write(2, buf, strlen(buf));
     }
     
