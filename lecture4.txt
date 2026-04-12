@@ -1,0 +1,25 @@
+MakeFiles:
+    prog: foo.o bar.o
+        gcc -o prog foo.o bar.o
+
+    foo.o: foo.c hdr.h
+        gcc -c foo.c
+
+    bar.o: bar.c hdr.h
+        gcc -c bar.c
+
+The Process Model:
+
+    user's view:
+        - each program is alone
+        - has its own: CPU, Memory, IO channels, Identities, and other stuff
+
+    system view (everything that has to be preserved to suspend a process):
+
+            Stored Process table    
+       |------------------------------------- 
+       | - Memory (address space registers)
+       | - Identity
+       | - File Descriptors
+       | - other stuff
+    
