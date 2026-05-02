@@ -13,15 +13,16 @@
 #include <unistd.h>
 #include <sys/time.h>
 
+/* struct for both id and cycle amount for each philosopher thread */
 typedef struct {
     int id;
     int cycles;
 } phil_parameters;
 
-sem_t semaphores[NUM_PHILOSOPHERS]; //[fork1, f2, ...]
-sem_t sem_lock; //semaphore that locks threads for printing
-int holds_fork[NUM_PHILOSOPHERS][NUM_PHILOSOPHERS];
-char *state[NUM_PHILOSOPHERS];
+sem_t semaphores[NUM_PHILOSOPHERS]; // array of forks
+sem_t sem_lock; // semaphore for printing
+int holds_fork[NUM_PHILOSOPHERS][NUM_PHILOSOPHERS]; // tracks whose holding what
+char *state[NUM_PHILOSOPHERS]; //tracks the states of each philosopher
 
 void dawdle() {
 /*
@@ -40,6 +41,12 @@ void dawdle() {
     }
 }
 
+/*
+ * start() - starting point for each philosopher thread. Takes a phil_parameters
+ * struct containing the philosopher's id and number of cycles to
+ * complete. Runs the full eat/think lifecycle, and uses
+ * an asymmetric fork pickup order for even vs odd philosophers.
+ */
 void* start(void* ptr){
     phil_parameters *params = (phil_parameters*)ptr;
     int thread_id = params->id;
@@ -49,33 +56,35 @@ void* start(void* ptr){
     display_status();
     
     for(int c = 0; c < cycles; c++){
-        //even philosophers and odd philosophers
+        /* even philosophers grab right fork first */
         if(thread_id % 2 == 0){
-            sem_wait(&semaphores[(thread_id + 1) % NUM_PHILOSOPHERS]); //right first
+            sem_wait(&semaphores[(thread_id + 1) % NUM_PHILOSOPHERS]);
             holds_fork[thread_id][(thread_id + 1) % NUM_PHILOSOPHERS] = 1;
             display_status();
 
-            sem_wait(&semaphores[thread_id]); //then left
+            sem_wait(&semaphores[thread_id]);
             holds_fork[thread_id][thread_id] = 1;
             display_status();
-
+        
+        /* odd philosophers grab left fork first */
         } else {
-            sem_wait(&semaphores[thread_id]); //left first
+            sem_wait(&semaphores[thread_id]);
             holds_fork[thread_id][thread_id] = 1;
             display_status();
 
-            sem_wait(&semaphores[(thread_id + 1) % NUM_PHILOSOPHERS]); //then right
+            sem_wait(&semaphores[(thread_id + 1) % NUM_PHILOSOPHERS]);
             holds_fork[thread_id][(thread_id + 1) % NUM_PHILOSOPHERS] = 1;
             display_status();
         }
 
-        // --- eat ---
+        /* eatting for random time */
         state[thread_id] = "Eat";
         display_status();
         dawdle();
 
-        // --- put forks down ---
+        /* put down left fork first then right */
         state[thread_id] = "";
+
         sem_post(&semaphores[thread_id]);
         holds_fork[thread_id][thread_id] = 0;
         display_status();
@@ -84,7 +93,7 @@ void* start(void* ptr){
         holds_fork[thread_id][(thread_id + 1) % NUM_PHILOSOPHERS] = 0;
         display_status();
 
-        // --- think ---
+        /* think inbetween cycles and skip on last one */
         if (c < cycles - 1) {
             state[thread_id] = "Think";
             display_status();
@@ -94,12 +103,20 @@ void* start(void* ptr){
             display_status();
         }
     }
-    //--- done ---
+    
+    /* finishing */
     state[thread_id] = "";
     display_status();
 
     return NULL;
 }
+
+/*
+ * main() - spawns semaphores, seeds the random number generator,
+ * spawns one thread per philosopher, waits for all to finish, then exits.
+ * Accepts optional command line argument for number of eat/think cycles,
+ * not required though
+ */
 
 int main(int argc, char *argv[]){
     int cycles = 1;
@@ -107,21 +124,22 @@ int main(int argc, char *argv[]){
         cycles = atoi(argv[1]);
     }
 
-    pthread_t threads[NUM_PHILOSOPHERS]; //[philosopher1, p2, ...]
-    phil_parameters params[NUM_PHILOSOPHERS]; //[struct1, struct2, ...]
+    pthread_t threads[NUM_PHILOSOPHERS];
+    phil_parameters params[NUM_PHILOSOPHERS]; 
 
-    // initialize state
+    /* initialize all philosopher states to changing */
     for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
         state[i] = "";
     }
 
-    //creating semaphores (forks)
+    /* initialize the printing lock semaphore */
     sem_init(&sem_lock, 0, 1);
     if (sem_init(&sem_lock, 0, 1) == -1) {
         printf("sem_init FAILED");
         exit(EXIT_FAILURE);
     }
 
+    /* initialize semaphores (forks) */
     for(int i = 0; i < NUM_PHILOSOPHERS; i++){
         sem_init(&semaphores[i], 0, 1);
 
@@ -131,13 +149,14 @@ int main(int argc, char *argv[]){
         }
     }
 
+     /* seeding with srandom (time of day) */
     struct timeval tv;
     gettimeofday(&tv, NULL);
     srandom(tv.tv_sec + tv.tv_usec);
 
     print_header();
 
-    //creating threads (philosophores)
+    /* create threads (philosophers) */
     for(int i = 0; i < NUM_PHILOSOPHERS; i++){
         params[i].id = i;
         params[i].cycles = cycles;
@@ -150,7 +169,7 @@ int main(int argc, char *argv[]){
         }
     }
 
-    //waiting for threads to finish
+    /* wait for all philosophers to finish eating*/
     for(int i = 0; i < NUM_PHILOSOPHERS; i++){
         pthread_join(threads[i], NULL);
     }

@@ -13,30 +13,34 @@
 #include <sys/time.h>
 
 
+/* globals variables in main.c */
 extern sem_t sem_lock;
 extern int holds_fork[][NUM_PHILOSOPHERS];  
 extern char *state[];
 
+/*
+ * print_header() - prints the top border of output.
+ * pretty self explanatory.
+ */
 void print_header() {
-    // top border
     for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
         printf("|=============");
     }
     printf("|\n");
-
-    // philosopher labels (A, B, C, ...)
     for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
         printf("|      %c      ", 'A' + i);
     }
     printf("|\n");
-
-    // bottom border
     for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
         printf("|=============");
     }
     printf("|\n");
 }
 
+/*
+ * print_footer() - prints the bottom border of output.
+ * pretty self explanatory.
+ */
 void print_footer() {
     for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
         printf("|=============");
@@ -44,9 +48,15 @@ void print_footer() {
     printf("|\n");
 }
 
+/*
+ * display_status() - prints one status row showing every philosopher's
+ * current forks held and state they are in. Uses sem_lock to ensure 
+ * only one thread prints at a time. Called after every state change.
+ */
 void display_status() {
     sem_wait(&sem_lock);
     for(int p = 0; p < NUM_PHILOSOPHERS; p++) {
+        /* build the forkstring: which forks are held if at all */
         char forkstring[NUM_PHILOSOPHERS + 1];
         for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
             if(holds_fork[p][i] == 1){
@@ -56,7 +66,9 @@ void display_status() {
             }
         }
         forkstring[NUM_PHILOSOPHERS] = '\0';
-        char col[NUM_PHILOSOPHERS + 8];
+
+        /* combine forkstring and the state label into one column */
+        char col[NUM_PHILOSOPHERS + MAX_STATE_LEN]; 
         if (strlen(state[p]) > 0) {
             snprintf(col, sizeof(col), "%s %s", forkstring, state[p]);
         } else {
@@ -65,5 +77,5 @@ void display_status() {
         printf("| %-11s ", col);
     }
     printf("|\n");
-    sem_post(&sem_lock);  // unlock
+    sem_post(&sem_lock);
 }
